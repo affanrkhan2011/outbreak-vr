@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Space Grotesk", sans-serif;
+  --font-display: "Anton", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+body {
+  background-color: #0c0b10;
+  color: #f5f5f5;
+  margin: 0;
+  overflow: hidden;
+  user-select: none;
+}
+#game-canvas-container canvas {
+  image-rendering: auto;
+}
+
+#game-hud-overlay {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  letter-spacing: 0.055em;
+  text-shadow: 0 0 8px rgba(130, 202, 222, 0.18);
+}
+
+#game-hud-overlay button { opacity: 0.78; }
