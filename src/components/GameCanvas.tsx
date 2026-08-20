@@ -512,6 +512,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const deviceQuatRef = useRef<THREE.Quaternion>(new THREE.Quaternion());
   const initialYawOffsetRef = useRef<number | null>(null);
   const hasGyroSensorRef = useRef<boolean>(false);
+  const desktopMouseLookRef = useRef<boolean>(false);
 
   // Wave & Spawning
   const lastSpawnTimeRef = useRef<number>(0);
@@ -543,6 +544,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const joystickOriginRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const JOYSTICK_MAX_RADIUS = 40;
+
+  const applyMouseLookDelta = (movementX: number, movementY: number) => {
+    const sens = (settings.sensitivity || 1.2) * 0.003;
+    yawRef.current -= movementX * sens;
+    pitchRef.current -= movementY * sens;
+    pitchRef.current = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pitchRef.current));
+  };
 
   const handleJoystickPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.stopPropagation();
@@ -627,6 +635,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // RENDERER
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    desktopMouseLookRef.current = !isMobile && (!window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints === 0);
     const getFullHdPixelRatio = () => {
       const width = Math.max(1, mountRef.current?.clientWidth || window.innerWidth);
       const height = Math.max(1, mountRef.current?.clientHeight || window.innerHeight);
@@ -800,6 +809,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Handle Gyroscope Orientation
   useEffect(() => {
+    if (desktopMouseLookRef.current) return;
+
     const handleOrientation = (e: DeviceOrientationEvent) => {
       if (!settings.gyroEnabled) return;
       if (e.alpha === null && e.beta === null && e.gamma === null) return;
@@ -831,6 +842,20 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       window.removeEventListener('deviceorientation', handleOrientation, true);
     };
   }, [settings.gyroEnabled]);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!desktopMouseLookRef.current || isPaused) return;
+      if (document.pointerLockElement !== mountRef.current) return;
+      applyMouseLookDelta(e.movementX, e.movementY);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      if (document.pointerLockElement === mountRef.current) document.exitPointerLock();
+    };
+  }, [isPaused, settings.sensitivity]);
 
   // --- ROOM BUILDER ---
   const buildRoomEnvironment = (scene: THREE.Scene) => {
@@ -2154,13 +2179,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // --- DESKTOP FALLBACK LOOK ---
   const handlePointerMove = (e: React.PointerEvent) => {
+    if (desktopMouseLookRef.current && document.pointerLockElement === mountRef.current) return;
     if (hasGyroSensorRef.current && settings.gyroEnabled) return;
 
     if (e.buttons === 1 || e.pointerType === 'mouse') {
-      const sens = (settings.sensitivity || 1.2) * 0.003;
-      yawRef.current -= e.movementX * sens;
-      pitchRef.current -= e.movementY * sens;
-      pitchRef.current = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pitchRef.current));
+      applyMouseLookDelta(e.movementX, e.movementY);
     }
   };
 
@@ -2196,7 +2219,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       }
 
       // 1. UPDATE CAMERA ROTATION
-      if (hasGyroSensorRef.current && settings.gyroEnabled) {
+      if (!desktopMouseLookRef.current && hasGyroSensorRef.current && settings.gyroEnabled) {
         camera.quaternion.copy(deviceQuatRef.current);
 
         const lookDir = new THREE.Vector3();
@@ -2575,6 +2598,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       className="relative w-full h-full touch-none select-none overflow-hidden cursor-crosshair bg-black"
       onPointerDown={(e) => {
         e.stopPropagation();
+        if (desktopMouseLookRef.current && e.pointerType === 'mouse' && document.pointerLockElement !== e.currentTarget) {
+          e.currentTarget.requestPointerLock();
+        }
         triggerHeldRef.current = true;
         handleShoot();
       }}

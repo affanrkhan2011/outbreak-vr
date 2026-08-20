@@ -37,6 +37,7 @@ export default function App() {
   const [warnings, setWarnings] = useState<DirectionalWarning[]>([]);
   const [waveBonusMessage, setWaveBonusMessage] = useState<string | null>(null);
   const [recenterSignal, setRecenterSignal] = useState(0);
+  const [gameRunId, setGameRunId] = useState(0);
   const [bestKills, setBestKills] = useState(() => parseInt(localStorage.getItem('zombie_best_kills') || localStorage.getItem('zombie_high_kills') || '0', 10));
   const [bestWave, setBestWave] = useState(() => parseInt(localStorage.getItem('zombie_best_wave') || localStorage.getItem('zombie_max_wave') || '1', 10));
   const [allTimeKills, setAllTimeKills] = useState(() => parseInt(localStorage.getItem('zombie_all_time_kills') || '0', 10));
@@ -60,8 +61,10 @@ export default function App() {
     void requestGyroPermission();
     setMode(selectedMode);
     setIsPaused(false);
+    setWarnings([]);
     setWaveBonusMessage(null);
     setRecenterSignal((value) => value + 1);
+    setGameRunId((value) => value + 1);
     setStats(createStats());
   };
 
@@ -145,6 +148,7 @@ export default function App() {
       ) : (
         <div className="relative h-full w-full">
           <GameCanvas
+            key={`${mode}-${gameRunId}`}
             mode={mode}
             settings={settings}
             isPaused={isPaused}
