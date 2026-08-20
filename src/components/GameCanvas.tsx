@@ -425,6 +425,7 @@ const touchesFixture = (pos: { x: number; z: number }, radius: number, fixture: 
 interface GameCanvasProps {
   mode: GameMode;
   settings: GameSettings;
+  isDesktopInput: boolean;
   weapon?: WeaponDefinition;
   abilityId?: 'ADRENALINE' | 'EMP';
   abilitySignal?: number;
@@ -446,6 +447,7 @@ interface GameCanvasProps {
 export const GameCanvas: React.FC<GameCanvasProps> = ({
   mode,
   settings,
+  isDesktopInput,
   weapon = DEFAULT_WEAPON,
   abilityId = 'ADRENALINE',
   abilitySignal = 0,
@@ -512,7 +514,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const deviceQuatRef = useRef<THREE.Quaternion>(new THREE.Quaternion());
   const initialYawOffsetRef = useRef<number | null>(null);
   const hasGyroSensorRef = useRef<boolean>(false);
-  const desktopMouseLookRef = useRef<boolean>(false);
+  const desktopMouseLookRef = useRef<boolean>(isDesktopInput);
 
   // Wave & Spawning
   const lastSpawnTimeRef = useRef<number>(0);
@@ -634,8 +636,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     cameraRef.current = camera;
 
     // RENDERER
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    desktopMouseLookRef.current = !isMobile && (!window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints === 0);
+    const isMobile = !desktopMouseLookRef.current;
     const getFullHdPixelRatio = () => {
       const width = Math.max(1, mountRef.current?.clientWidth || window.innerWidth);
       const height = Math.max(1, mountRef.current?.clientHeight || window.innerHeight);
@@ -737,6 +738,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       }
     };
   }, []);
+
+  useEffect(() => {
+    desktopMouseLookRef.current = isDesktopInput;
+  }, [isDesktopInput]);
 
   useEffect(() => {
     soundManager.setMuted(!settings.soundEnabled);
@@ -2595,7 +2600,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     <div
       ref={mountRef}
       id="game-canvas-container"
-      className="relative w-full h-full touch-none select-none overflow-hidden cursor-crosshair bg-black"
+      className={`relative w-full h-full touch-none select-none overflow-hidden bg-black ${isDesktopInput ? 'cursor-none' : 'cursor-crosshair'}`}
       onPointerDown={(e) => {
         e.stopPropagation();
         if (desktopMouseLookRef.current && e.pointerType === 'mouse' && document.pointerLockElement !== e.currentTarget) {
@@ -2623,7 +2628,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       </div>
 
       {/* VIRTUAL JOYSTICK (BOTTOM LEFT) */}
-      {!isPaused && hp > 0 && (
+      {!isDesktopInput && !isPaused && hp > 0 && (
         <div
           className="absolute bottom-12 left-10 z-30 pointer-events-auto touch-none select-none flex items-center justify-center p-2"
           onPointerDown={handleJoystickPointerDown}

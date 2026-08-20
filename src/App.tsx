@@ -4,6 +4,7 @@ import { HomeScreen } from './components/HomeScreen';
 import { GameCanvas } from './components/GameCanvas';
 import { GameHUD } from './components/GameHUD';
 import { soundManager } from './utils/audio';
+import { isDesktopInputDevice } from './utils/device';
 
 const createStats = (): PlayerStats => ({
   hp: 150,
@@ -38,6 +39,7 @@ export default function App() {
   const [waveBonusMessage, setWaveBonusMessage] = useState<string | null>(null);
   const [recenterSignal, setRecenterSignal] = useState(0);
   const [gameRunId, setGameRunId] = useState(0);
+  const [isDesktopInput, setIsDesktopInput] = useState(isDesktopInputDevice);
   const [bestKills, setBestKills] = useState(() => parseInt(localStorage.getItem('zombie_best_kills') || localStorage.getItem('zombie_high_kills') || '0', 10));
   const [bestWave, setBestWave] = useState(() => parseInt(localStorage.getItem('zombie_best_wave') || localStorage.getItem('zombie_max_wave') || '1', 10));
   const [allTimeKills, setAllTimeKills] = useState(() => parseInt(localStorage.getItem('zombie_all_time_kills') || '0', 10));
@@ -45,6 +47,24 @@ export default function App() {
   useEffect(() => {
     soundManager.setMuted(!settings.soundEnabled);
   }, [settings.soundEnabled]);
+
+  useEffect(() => {
+    const updateInputMode = () => setIsDesktopInput(isDesktopInputDevice());
+    updateInputMode();
+    window.addEventListener('resize', updateInputMode);
+    return () => window.removeEventListener('resize', updateInputMode);
+  }, []);
+
+  useEffect(() => {
+    const handleEscapePause = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || mode === 'HOME' || stats.hp <= 0) return;
+      event.preventDefault();
+      setIsPaused((value) => !value);
+    };
+
+    window.addEventListener('keydown', handleEscapePause);
+    return () => window.removeEventListener('keydown', handleEscapePause);
+  }, [mode, stats.hp]);
 
   const requestGyroPermission = async () => {
     try {
@@ -151,6 +171,7 @@ export default function App() {
             key={`${mode}-${gameRunId}`}
             mode={mode}
             settings={settings}
+            isDesktopInput={isDesktopInput}
             isPaused={isPaused}
             wave={stats.wave}
             hp={stats.hp}
@@ -168,6 +189,7 @@ export default function App() {
             mode={mode}
             stats={stats}
             settings={settings}
+            isDesktopInput={isDesktopInput}
             isPaused={isPaused}
             isDamaged={isDamaged}
             warnings={warnings}
